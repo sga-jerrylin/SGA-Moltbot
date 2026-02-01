@@ -30,6 +30,9 @@ import { applyHookMappings } from "./hooks-mapping.js";
 import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
+import { requestHeartbeatNow } from "../infra/heartbeat-wake.js";
+
+import { handleDifyCompatHttpRequest } from "./server-dify-compat.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
 
@@ -242,6 +245,26 @@ export function createGatewayHttpServer(opts: {
     try {
       const configSnapshot = loadConfig();
       const trustedProxies = configSnapshot.gateway?.trustedProxies ?? [];
+
+      // Heartbeat webhook (generic trigger)
+      const url = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`);
+      if (req.method === "POST" && url.pathname === "/hooks/heartbeat") {
+        requestHeartbeatNow({ reason: "webhook", coalesceMs: 1000 });
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      // Dify Compatibility Layer (SGA-COW integration)
+      if (url.pathname.startsWith("/api/dify-compat")) {
+        if (
+          await handleDifyCompatHttpRequest(req, res, {
+            auth: resolvedAuth,
+            trustedProxies,
+          })
+        ) {
+          return;
+        }
+      }
       if (await handleHooksRequest(req, res)) {
         return;
       }

@@ -18,6 +18,12 @@ import { createSessionsSendTool } from "./tools/sessions-send-tool.js";
 import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
 import { createWebFetchTool, createWebSearchTool } from "./tools/web-tools.js";
 import { createTtsTool } from "./tools/tts-tool.js";
+import {
+  createSgaSendTool,
+  createSgaListUsersTool,
+  createSgaListDepartmentsTool,
+  isSgaSendToolEnabled,
+} from "./tools/sga-send-tool.js";
 
 export function createOpenClawTools(options?: {
   sandboxBrowserBridgeUrl?: string;
@@ -138,6 +144,15 @@ export function createOpenClawTools(options?: {
     ...(webFetchTool ? [webFetchTool] : []),
     ...(imageTool ? [imageTool] : []),
   ];
+
+  // Add SGA tools if platform is configured (Enterprise mode)
+  if (isSgaSendToolEnabled(options?.config)) {
+    tools.push(
+      createSgaSendTool({ config: options?.config }),
+      createSgaListUsersTool({ config: options?.config }),
+      createSgaListDepartmentsTool({ config: options?.config })
+    );
+  }
 
   const pluginTools = resolvePluginTools({
     context: {

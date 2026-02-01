@@ -371,6 +371,13 @@ const DOCKS: Record<ChatChannelId, ChannelDock> = {
       },
     },
   },
+  sga: {
+    id: "sga",
+    capabilities: {
+      chatTypes: ["direct", "group"],
+    },
+    outbound: { textChunkLimit: 4000 },
+  },
 };
 
 function buildDockFromPlugin(plugin: ChannelPlugin): ChannelDock {
