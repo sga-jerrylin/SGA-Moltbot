@@ -15,6 +15,18 @@ export const MOONSHOT_DEFAULT_MAX_TOKENS = 8192;
 export const KIMI_CODING_MODEL_ID = "k2p5";
 export const KIMI_CODING_MODEL_REF = `kimi-coding/${KIMI_CODING_MODEL_ID}`;
 
+export const DIFY_DEFAULT_MODEL_ID = "dify-app";
+export const DIFY_DEFAULT_MODEL_REF = `dify/${DIFY_DEFAULT_MODEL_ID}`;
+export const DIFY_DEFAULT_CONTEXT_WINDOW = 4096; // Conservative default
+export const DIFY_DEFAULT_MAX_TOKENS = 4096;
+
+export const DIFY_DEFAULT_COST = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+};
+
 // Pricing: MiniMax doesn't publish public rates. Override in models.json for accurate costs.
 export const MINIMAX_API_COST = {
   input: 15,
@@ -89,5 +101,17 @@ export function buildMoonshotModelDefinition(): ModelDefinitionConfig {
     cost: MOONSHOT_DEFAULT_COST,
     contextWindow: MOONSHOT_DEFAULT_CONTEXT_WINDOW,
     maxTokens: MOONSHOT_DEFAULT_MAX_TOKENS,
+  };
+}
+
+export function buildDifyModelDefinition(): ModelDefinitionConfig {
+  return {
+    id: DIFY_DEFAULT_MODEL_ID,
+    name: "Dify App",
+    reasoning: false,
+    input: ["text"],
+    cost: DIFY_DEFAULT_COST,
+    contextWindow: DIFY_DEFAULT_CONTEXT_WINDOW,
+    maxTokens: DIFY_DEFAULT_MAX_TOKENS,
   };
 }

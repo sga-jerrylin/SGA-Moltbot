@@ -1,0 +1,14 @@
+{
+  "name": "@openclaw/sga",
+  "version": "2026.1.30",
+  "description": "OpenClaw SGA channel plugin for WeCom/Feishu/DingTalk",
+  "type": "module",
+  "devDependencies": {
+    "openclaw": "workspace:*"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

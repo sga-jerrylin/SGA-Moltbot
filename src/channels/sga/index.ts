@@ -7,6 +7,7 @@ import type {
 } from "../plugins/types.adapters.js";
 import type { ChannelAccountSnapshot, ChannelCapabilities, ChannelMeta } from "../plugins/types.core.js";
 import type { ChannelPlugin } from "../plugins/types.plugin.js";
+import { sgaOnboardingAdapter } from "../plugins/onboarding/sga.js";
 import { SgaClient } from "./client.js";
 import { getSgaSenderManager } from "./sender-manager.js";
 import { parseSessionKey } from "./types.js";
@@ -21,7 +22,8 @@ interface SgaResolvedAccount {
 const configAdapter: ChannelConfigAdapter<SgaResolvedAccount> = {
   listAccountIds: (cfg: OpenClawConfig): string[] => {
     const sgaConfig = cfg.channels?.["sga"] as SgaChannelConfig | undefined;
-    if (!sgaConfig?.endpoint) {
+    // Consider configured if has apiKey OR platforms OR legacy endpoint
+    if (!sgaConfig?.apiKey && !sgaConfig?.platforms && !sgaConfig?.endpoint) {
       return [];
     }
     return ["default"];
@@ -34,17 +36,34 @@ const configAdapter: ChannelConfigAdapter<SgaResolvedAccount> = {
     };
   },
   isConfigured: (account: SgaResolvedAccount): boolean => {
-    return Boolean(account.config.endpoint);
+    // Configured if has apiKey OR any platform configured OR legacy endpoint
+    return Boolean(
+      account.config.apiKey ||
+        account.config.endpoint ||
+        (account.config.platforms &&
+          Object.values(account.config.platforms).some((p) => p && Object.keys(p).length > 0)),
+    );
   },
   isEnabled: (account: SgaResolvedAccount): boolean => {
-    return Boolean(account.config.endpoint);
+    return Boolean(
+      account.config.apiKey ||
+        account.config.endpoint ||
+        (account.config.platforms &&
+          Object.values(account.config.platforms).some((p) => p && Object.keys(p).length > 0)),
+    );
   },
   describeAccount: (account: SgaResolvedAccount): ChannelAccountSnapshot => {
+    const configured = Boolean(
+      account.config.apiKey ||
+        account.config.endpoint ||
+        (account.config.platforms &&
+          Object.values(account.config.platforms).some((p) => p && Object.keys(p).length > 0)),
+    );
     return {
       accountId: account.accountId,
       name: "SGA Gateway",
-      enabled: Boolean(account.config.endpoint),
-      configured: Boolean(account.config.endpoint),
+      enabled: configured,
+      configured,
     };
   },
 };
@@ -142,6 +161,7 @@ export const sgaChannel: ChannelPlugin<SgaResolvedAccount> = {
   config: configAdapter,
   status: statusAdapter,
   outbound: outboundAdapter,
+  onboarding: sgaOnboardingAdapter,
 };
 
 export default sgaChannel;

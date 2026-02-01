@@ -54,6 +54,13 @@ export interface SgaPlatformConfigs {
 }
 
 /**
+ * SGA reply mode
+ * - "single": Only reply to a single fixed user (requires defaultUserId)
+ * - "enterprise": Can send to any user from contacts list
+ */
+export type SgaReplyMode = "single" | "enterprise";
+
+/**
  * Full SGA channel configuration
  */
 export interface SgaChannelConfig {
@@ -62,6 +69,10 @@ export interface SgaChannelConfig {
   token?: string;
   // API key for Dify-compat authentication
   apiKey?: string;
+  // Reply mode: single user or enterprise (contacts)
+  replyMode?: SgaReplyMode;
+  // Default user ID for single mode
+  defaultUserId?: string;
   // Multi-platform sender configurations
   platforms?: SgaPlatformConfigs;
 }

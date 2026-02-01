@@ -19,7 +19,9 @@ import {
   ZAI_DEFAULT_MODEL_REF,
 } from "./onboard-auth.credentials.js";
 import {
+  buildDifyModelDefinition,
   buildMoonshotModelDefinition,
+  DIFY_DEFAULT_MODEL_REF,
   KIMI_CODING_MODEL_REF,
   MOONSHOT_BASE_URL,
   MOONSHOT_DEFAULT_MODEL_ID,
@@ -502,6 +504,77 @@ export function applyAuthProfileConfig(
       ...cfg.auth,
       profiles,
       ...(order ? { order } : {}),
+    },
+  };
+}
+
+/**
+ * Apply Dify provider configuration without changing the default model.
+ */
+export function applyDifyProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
+  const models = { ...cfg.agents?.defaults?.models };
+  models[DIFY_DEFAULT_MODEL_REF] = {
+    ...models[DIFY_DEFAULT_MODEL_REF],
+    alias: models[DIFY_DEFAULT_MODEL_REF]?.alias ?? "Dify",
+  };
+
+  const providers = { ...cfg.models?.providers };
+  const existingProvider = providers.dify;
+  const existingModels = Array.isArray(existingProvider?.models) ? existingProvider.models : [];
+  const defaultModel = buildDifyModelDefinition();
+  const hasDefaultModel = existingModels.some((model) => model.id === defaultModel.id);
+  const mergedModels = hasDefaultModel ? existingModels : [...existingModels, defaultModel];
+  const { apiKey: existingApiKey, ...existingProviderRest } = (existingProvider ?? {}) as Record<
+    string,
+    unknown
+  > as { apiKey?: string };
+  const resolvedApiKey = typeof existingApiKey === "string" ? existingApiKey : undefined;
+  const normalizedApiKey = resolvedApiKey?.trim();
+  providers.dify = {
+    ...existingProviderRest,
+    baseUrl: (existingProviderRest as { baseUrl?: string }).baseUrl ?? "https://api.dify.ai/v1",
+    api: "dify-chat",
+    ...(normalizedApiKey ? { apiKey: normalizedApiKey } : {}),
+    models: mergedModels.length > 0 ? mergedModels : [defaultModel],
+  };
+
+  return {
+    ...cfg,
+    agents: {
+      ...cfg.agents,
+      defaults: {
+        ...cfg.agents?.defaults,
+        models,
+      },
+    },
+    models: {
+      mode: cfg.models?.mode ?? "merge",
+      providers,
+    },
+  };
+}
+
+/**
+ * Apply Dify provider configuration AND set Dify as the default model.
+ */
+export function applyDifyConfig(cfg: OpenClawConfig): OpenClawConfig {
+  const next = applyDifyProviderConfig(cfg);
+  const existingModel = next.agents?.defaults?.model;
+  return {
+    ...next,
+    agents: {
+      ...next.agents,
+      defaults: {
+        ...next.agents?.defaults,
+        model: {
+          ...(existingModel && "fallbacks" in (existingModel as Record<string, unknown>)
+            ? {
+                fallbacks: (existingModel as { fallbacks?: string[] }).fallbacks,
+              }
+            : undefined),
+          primary: DIFY_DEFAULT_MODEL_REF,
+        },
+      },
     },
   };
 }

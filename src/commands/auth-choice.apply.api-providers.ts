@@ -13,6 +13,8 @@ import {
 } from "./google-gemini-model-default.js";
 import {
   applyAuthProfileConfig,
+  applyDifyConfig,
+  applyDifyProviderConfig,
   applyKimiCodeConfig,
   applyKimiCodeProviderConfig,
   applyMoonshotConfig,
@@ -30,6 +32,7 @@ import {
   applyXiaomiConfig,
   applyXiaomiProviderConfig,
   applyZaiConfig,
+  DIFY_DEFAULT_MODEL_REF,
   KIMI_CODING_MODEL_REF,
   MOONSHOT_DEFAULT_MODEL_REF,
   OPENROUTER_DEFAULT_MODEL_REF,
@@ -37,6 +40,7 @@ import {
   VENICE_DEFAULT_MODEL_REF,
   VERCEL_AI_GATEWAY_DEFAULT_MODEL_REF,
   XIAOMI_DEFAULT_MODEL_REF,
+  setDifyApiKey,
   setGeminiApiKey,
   setKimiCodingApiKey,
   setMoonshotApiKey,
@@ -634,6 +638,113 @@ export async function applyAuthChoiceApiProviders(
         applyDefaultConfig: applyOpencodeZenConfig,
         applyProviderConfig: applyOpencodeZenProviderConfig,
         noteDefault: OPENCODE_ZEN_DEFAULT_MODEL,
+        noteAgentModel,
+        prompter: params.prompter,
+      });
+      nextConfig = applied.config;
+      agentModelOverride = applied.agentModelOverride ?? agentModelOverride;
+    }
+    return { config: nextConfig, agentModelOverride };
+  }
+
+  if (authChoice === "dify-api-key") {
+    let hasCredential = false;
+
+    if (!hasCredential && params.opts?.token && params.opts?.tokenProvider === "dify") {
+      await setDifyApiKey(normalizeApiKeyInput(params.opts.token), params.agentDir);
+      hasCredential = true;
+    }
+
+    if (!hasCredential) {
+      await params.prompter.note(
+        [
+          "Dify allows you to use Dify Agent/Workflow as the AI backend.",
+          "Get your API key from your Dify application settings.",
+          "",
+          "Dify can be self-hosted or cloud-hosted:",
+          "  - Cloud: https://api.dify.ai/v1",
+          "  - Self-hosted: http://your-server:port/v1",
+        ].join("\n"),
+        "Dify",
+      );
+    }
+
+    // Prompt for Dify base URL first
+    const existingDifyProvider = nextConfig.models?.providers?.dify as
+      | { baseUrl?: string }
+      | undefined;
+    const existingBaseUrl = existingDifyProvider?.baseUrl?.trim();
+    let difyBaseUrl = existingBaseUrl ?? "https://api.dify.ai/v1";
+
+    if (existingBaseUrl) {
+      const keepUrl = await params.prompter.confirm({
+        message: `Use existing Dify URL: ${existingBaseUrl}?`,
+        initialValue: true,
+      });
+      if (!keepUrl) {
+        const url = await params.prompter.text({
+          message: "Enter Dify base URL",
+          placeholder: "https://api.dify.ai/v1",
+          validate: (v) => (v?.trim() ? undefined : "Required"),
+        });
+        difyBaseUrl = String(url).trim();
+      }
+    } else {
+      const url = await params.prompter.text({
+        message: "Enter Dify base URL",
+        placeholder: "https://api.dify.ai/v1",
+        initialValue: "https://api.dify.ai/v1",
+        validate: (v) => (v?.trim() ? undefined : "Required"),
+      });
+      difyBaseUrl = String(url).trim();
+    }
+
+    // Store the base URL in provider config
+    const providers = { ...nextConfig.models?.providers };
+    providers.dify = {
+      ...providers.dify,
+      baseUrl: difyBaseUrl,
+    };
+    nextConfig = {
+      ...nextConfig,
+      models: {
+        ...nextConfig.models,
+        mode: nextConfig.models?.mode ?? "merge",
+        providers,
+      },
+    };
+
+    const envKey = resolveEnvApiKey("dify");
+    if (envKey) {
+      const useExisting = await params.prompter.confirm({
+        message: `Use existing DIFY_API_KEY (${envKey.source}, ${formatApiKeyPreview(envKey.apiKey)})?`,
+        initialValue: true,
+      });
+      if (useExisting) {
+        await setDifyApiKey(envKey.apiKey, params.agentDir);
+        hasCredential = true;
+      }
+    }
+    if (!hasCredential) {
+      const key = await params.prompter.text({
+        message: "Enter Dify API key",
+        validate: validateApiKeyInput,
+      });
+      await setDifyApiKey(normalizeApiKeyInput(String(key)), params.agentDir);
+    }
+    nextConfig = applyAuthProfileConfig(nextConfig, {
+      profileId: "dify:default",
+      provider: "dify",
+      mode: "api_key",
+    });
+    {
+      const applied = await applyDefaultModelChoice({
+        config: nextConfig,
+        setDefaultModel: params.setDefaultModel,
+        defaultModel: DIFY_DEFAULT_MODEL_REF,
+        applyDefaultConfig: applyDifyConfig,
+        applyProviderConfig: applyDifyProviderConfig,
+        noteDefault: DIFY_DEFAULT_MODEL_REF,
         noteAgentModel,
         prompter: params.prompter,
       });

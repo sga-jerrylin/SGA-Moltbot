@@ -1,0 +1,9 @@
+{
+  "id": "sga",
+  "channels": ["sga"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
