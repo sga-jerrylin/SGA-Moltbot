@@ -30,12 +30,16 @@ export interface DifyAgentRunParams {
 export interface DifyAgentRunResult {
   payloads: Array<{ text: string; type?: string }>;
   meta: {
+    durationMs: number;
     agentMeta?: {
+      sessionId: string;
       provider: string;
       model: string;
       usage?: {
         input?: number;
         output?: number;
+        cacheRead?: number;
+        cacheWrite?: number;
         total?: number;
       };
     };
@@ -195,12 +199,16 @@ export async function runDifyAgent(params: DifyAgentRunParams): Promise<DifyAgen
     return {
       payloads: [{ text: answer, type: "text" }],
       meta: {
+        durationMs: duration,
         agentMeta: {
+          sessionId: params.sessionId,
           provider: params.provider,
           model: params.model,
           usage: {
             input: usage.prompt_tokens ?? 0,
             output: usage.completion_tokens ?? 0,
+            cacheRead: 0,
+            cacheWrite: 0,
             total: usage.total_tokens ?? 0,
           },
         },
