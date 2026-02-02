@@ -9,6 +9,7 @@ import { runCliAgent } from "../../agents/cli-runner.js";
 import { getCliSessionId, setCliSessionId } from "../../agents/cli-session.js";
 import { lookupContextTokens } from "../../agents/context.js";
 import { DEFAULT_CONTEXT_TOKENS, DEFAULT_MODEL, DEFAULT_PROVIDER } from "../../agents/defaults.js";
+import { isDifyProvider, runDifyAgent } from "../../agents/dify-runner.js";
 import { loadModelCatalog } from "../../agents/model-catalog.js";
 import { runWithModelFallback } from "../../agents/model-fallback.js";
 import {
@@ -339,6 +340,24 @@ export async function runCronIsolatedAgentTurn(params: {
       agentDir,
       fallbacksOverride: resolveAgentModelFallbacksOverride(params.cfg, agentId),
       run: (providerOverride, modelOverride) => {
+        // Check if this is a Dify provider
+        if (isDifyProvider(providerOverride, cfgWithAgentDefaults)) {
+          // Extract user ID from job payload if available (for sga channel)
+          const jobPayload = params.job.payload;
+          const requestUserId =
+            jobPayload.kind === "agentTurn" ? (jobPayload.to as string | undefined) : undefined;
+
+          return runDifyAgent({
+            sessionId: cronSession.sessionEntry.sessionId,
+            sessionKey: agentSessionKey,
+            prompt: commandBody,
+            config: cfgWithAgentDefaults,
+            provider: providerOverride,
+            model: modelOverride,
+            requestUserId,
+            timeoutMs,
+          });
+        }
         if (isCliProvider(providerOverride, cfgWithAgentDefaults)) {
           const cliSessionId = getCliSessionId(cronSession.sessionEntry, providerOverride);
           return runCliAgent({

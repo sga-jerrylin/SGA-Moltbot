@@ -42,6 +42,13 @@ export type ModelProviderConfig = {
   headers?: Record<string, string>;
   authHeader?: boolean;
   models: ModelDefinitionConfig[];
+  // Dify-specific configuration
+  /** Fixed user ID for Dify - all requests will use this user ID */
+  fixedUserId?: string;
+  /** Whether this is a Dify Agent/Workflow app (requires streaming mode) */
+  isAgent?: boolean;
+  /** Custom inputs to pass to Dify on every request */
+  inputs?: Record<string, unknown>;
 };
 
 export type BedrockDiscoveryConfig = {

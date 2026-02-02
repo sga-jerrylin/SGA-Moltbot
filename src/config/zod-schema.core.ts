@@ -9,6 +9,7 @@ export const ModelApiSchema = z.union([
   z.literal("google-generative-ai"),
   z.literal("github-copilot"),
   z.literal("bedrock-converse-stream"),
+  z.literal("dify-chat"),
 ]);
 
 export const ModelCompatSchema = z
@@ -57,6 +58,14 @@ export const ModelProviderSchema = z
     headers: z.record(z.string(), z.string()).optional(),
     authHeader: z.boolean().optional(),
     models: z.array(ModelDefinitionSchema),
+    // Dify-specific configuration
+    // Fixed user ID for Dify - all requests will use this user ID
+    // This allows user identification to be handled by Dify workflows
+    fixedUserId: z.string().optional(),
+    // Whether this is a Dify Agent/Workflow app (requires streaming mode)
+    isAgent: z.boolean().optional(),
+    // Custom inputs to pass to Dify on every request
+    inputs: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 

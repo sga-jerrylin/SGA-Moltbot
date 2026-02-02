@@ -100,7 +100,9 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
 }
 
 function sendSseEvent(res: ServerResponse, event: string, data: unknown) {
-  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  // Dify SSE format: data field contains the event type inside the JSON
+  const payload = { event, ...data as Record<string, unknown> };
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
 // Validate Bearer token from Authorization header
@@ -144,8 +146,11 @@ export async function handleDifyCompatHttpRequest(
 ): Promise<boolean> {
   const url = new URL(req.url ?? "/", `http://${req.headers.host || "localhost"}`);
 
+  console.log(`[Dify Compat] Incoming request: ${req.method} ${url.pathname}`);
+
   // Route: POST /api/dify-compat/v1/chat-messages
   if (req.method === "POST" && url.pathname === "/api/dify-compat/v1/chat-messages") {
+    console.log("[Dify Compat] Routing to handleChatMessages");
     return handleChatMessages(req, res, opts);
   }
 
@@ -178,14 +183,19 @@ async function handleChatMessages(
   const sgaConfig = cfg.channels?.["sga"] as SgaApiConfig | undefined;
   const configuredApiKey = sgaConfig?.apiKey;
 
+  console.log(`[Dify Compat] Configured API key: ${configuredApiKey ? "SET" : "NOT SET"}`);
+  console.log(`[Dify Compat] Auth header: ${req.headers.authorization ? "Present" : "Missing"}`);
+
   // Validate API key if configured
   if (!validateApiKey(req, configuredApiKey)) {
+    console.log("[Dify Compat] API key validation FAILED");
     sendJson(res, 401, {
       code: "unauthorized",
       message: "Invalid or missing API key. Use Authorization: Bearer <your-api-key>",
     });
     return true;
   }
+  console.log("[Dify Compat] API key validation passed");
 
   const bodyResult = await readJsonBody(req, 1024 * 1024);
   if (!bodyResult.ok) {
@@ -224,6 +234,13 @@ async function handleChatMessages(
     contextPrefix = `[群聊: ${roomName || roomId}] `;
   }
   const fullMessage = `${contextPrefix}${payload.query}`;
+
+  console.log(`[Dify Compat] Processing request:`, {
+    sessionKey,
+    userName,
+    query: payload.query.slice(0, 100),
+    responseMode,
+  });
 
   // Import and call the agent dispatcher
   try {

@@ -524,10 +524,18 @@ export function applyDifyProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
   const defaultModel = buildDifyModelDefinition();
   const hasDefaultModel = existingModels.some((model) => model.id === defaultModel.id);
   const mergedModels = hasDefaultModel ? existingModels : [...existingModels, defaultModel];
-  const { apiKey: existingApiKey, ...existingProviderRest } = (existingProvider ?? {}) as Record<
-    string,
-    unknown
-  > as { apiKey?: string };
+  const {
+    apiKey: existingApiKey,
+    fixedUserId: existingFixedUserId,
+    isAgent: existingIsAgent,
+    inputs: existingInputs,
+    ...existingProviderRest
+  } = (existingProvider ?? {}) as Record<string, unknown> as {
+    apiKey?: string;
+    fixedUserId?: string;
+    isAgent?: boolean;
+    inputs?: Record<string, unknown>;
+  };
   const resolvedApiKey = typeof existingApiKey === "string" ? existingApiKey : undefined;
   const normalizedApiKey = resolvedApiKey?.trim();
   providers.dify = {
@@ -535,6 +543,10 @@ export function applyDifyProviderConfig(cfg: OpenClawConfig): OpenClawConfig {
     baseUrl: (existingProviderRest as { baseUrl?: string }).baseUrl ?? "https://api.dify.ai/v1",
     api: "dify-chat",
     ...(normalizedApiKey ? { apiKey: normalizedApiKey } : {}),
+    // Preserve Dify-specific configuration
+    ...(existingFixedUserId ? { fixedUserId: existingFixedUserId } : {}),
+    ...(existingIsAgent !== undefined ? { isAgent: existingIsAgent } : {}),
+    ...(existingInputs ? { inputs: existingInputs } : {}),
     models: mergedModels.length > 0 ? mergedModels : [defaultModel],
   };
 

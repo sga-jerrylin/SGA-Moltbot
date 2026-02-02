@@ -57,15 +57,26 @@ export const SgaPlatformsSchema = z
   .strict();
 
 /**
+ * SGA reply mode
+ */
+export const SgaReplyModeSchema = z.enum(["single", "enterprise"]);
+
+/**
  * Full SGA Channel Config
  */
 export const SgaConfigSchema = z
   .object({
+    // Enable/disable the SGA channel
+    enabled: z.boolean().optional().describe("Enable or disable the SGA channel"),
     // API key for Dify-compat authentication (sga-cow -> OpenClaw)
     apiKey: z.string().optional().describe("API Key for authenticating sga-cow requests"),
     // Legacy endpoint for backward compatibility
     endpoint: z.string().optional().describe("Legacy sga-cow endpoint for message relay"),
     token: z.string().optional().describe("Legacy sga-cow auth token"),
+    // Reply mode: single user or enterprise (contacts)
+    replyMode: SgaReplyModeSchema.optional().describe("Reply mode: 'single' for fixed user, 'enterprise' for contacts"),
+    // Default user ID for single mode
+    defaultUserId: z.string().optional().describe("Default user ID for single reply mode"),
     // Multi-platform configurations
     platforms: SgaPlatformsSchema.optional(),
   })

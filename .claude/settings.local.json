@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.dify.ai)",
+      "Read(//e/sga-workspace/**)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(pnpm install)",
+      "Bash(dir:*)",
+      "Bash(pnpm build)",
+      "Bash(git commit:*)",
+      "Bash(echo:*)",
+      "Bash(git config:*)",
+      "Bash(git push:*)",
+      "Bash(git remote:*)",
+      "Bash(GIT_TRACE=1 git commit:*)",
+      "Bash(curl:*)",
+      "Bash(git -C \"E:\\\\SGA-Claw\" commit -m \"fix: SGA/Dify compatibility fixes for Windows and Cow\")",
+      "Bash(git pull:*)"
+    ]
+  }
+}
