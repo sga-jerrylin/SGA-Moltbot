@@ -5,13 +5,13 @@
  * This runner is used when the model provider is configured with api: "dify-chat"
  */
 
-import type { OpenClawConfig } from "../../config/config.js";
-import type { ModelProviderConfig } from "../../config/types.models.js";
+import type { OpenClawConfig } from "../config/config.js";
+import type { ModelProviderConfig } from "../config/types.models.js";
+import type { MessagingToolSend } from "./pi-embedded-messaging.js";
 import {
   DifyChatProvider,
   type DifyAgentThoughtEvent,
-  type DifyStreamEvent,
-} from "../../providers/dify-chat.js";
+} from "../providers/dify-chat.js";
 
 export interface DifyAgentRunParams {
   sessionId: string;
@@ -45,7 +45,7 @@ export interface DifyAgentRunResult {
     };
   };
   didSendViaMessagingTool?: boolean;
-  messagingToolSentTargets?: unknown[];
+  messagingToolSentTargets?: MessagingToolSend[];
   /** Dify conversation ID for session continuity */
   difyConversationId?: string;
   /** Agent thoughts from Dify workflow/agent */
@@ -214,7 +214,7 @@ export async function runDifyAgent(params: DifyAgentRunParams): Promise<DifyAgen
         },
       },
       didSendViaMessagingTool: false,
-      messagingToolSentTargets: [],
+      messagingToolSentTargets: [] as MessagingToolSend[],
       difyConversationId: resultConversationId,
       difyThoughts: thoughts,
     };
