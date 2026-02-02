@@ -52,6 +52,7 @@ import type { RunEmbeddedPiAgentParams } from "./run/params.js";
 import { buildEmbeddedRunPayloads } from "./run/payloads.js";
 import type { EmbeddedPiAgentMeta, EmbeddedPiRunResult } from "./types.js";
 import { describeUnknownError } from "./utils.js";
+import { isDifyProvider, runDifyAgent } from "../dify-runner.js";
 
 type ApiKeyInfo = ResolvedProviderAuth;
 
@@ -72,6 +73,24 @@ function scrubAnthropicRefusalMagic(prompt: string): string {
 export async function runEmbeddedPiAgent(
   params: RunEmbeddedPiAgentParams,
 ): Promise<EmbeddedPiRunResult> {
+  const provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
+  const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+
+  // Check if this is a Dify provider - if so, use Dify runner instead
+  if (isDifyProvider(provider, params.config)) {
+    console.log(`[pi-embedded-runner] Detected Dify provider, redirecting to Dify runner`);
+    const difyResult = await runDifyAgent({
+      sessionId: params.sessionId,
+      sessionKey: params.sessionKey ?? params.sessionId,
+      prompt: params.prompt,
+      config: params.config,
+      provider,
+      model: modelId,
+      timeoutMs: params.timeoutMs,
+    });
+    return difyResult;
+  }
+
   const sessionLane = resolveSessionLane(params.sessionKey?.trim() || params.sessionId);
   const globalLane = resolveGlobalLane(params.lane);
   const enqueueGlobal =
@@ -94,8 +113,6 @@ export async function runEmbeddedPiAgent(
       const resolvedWorkspace = resolveUserPath(params.workspaceDir);
       const prevCwd = process.cwd();
 
-      const provider = (params.provider ?? DEFAULT_PROVIDER).trim() || DEFAULT_PROVIDER;
-      const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
       const agentDir = params.agentDir ?? resolveOpenClawAgentDir();
       const fallbackConfigured =
         (params.config?.agents?.defaults?.model?.fallbacks?.length ?? 0) > 0;
