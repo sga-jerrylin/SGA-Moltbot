@@ -2,6 +2,13 @@
 
 Docs: https://docs.openclaw.ai
 
+## 2026.2.05
+
+### Changes
+
+- Skills: Added `searxng-sga-search` skill for private Chinese/WeChat/General search via SearXNG-SGA.
+- Skills: Merged skills discovery, import, and validation modules.
+
 ## 2026.1.31
 
 ### Changes

@@ -18,6 +18,7 @@ import { createSessionsSendTool } from "./tools/sessions-send-tool.js";
 import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
 import { createSkillsTool } from "./tools/skills-tool.js";
 import { createWebFetchTool, createWebSearchTool } from "./tools/web-tools.js";
+import { createSearxngSgaTool } from "./tools/searxng-sga-tool.js";
 import { createTtsTool } from "./tools/tts-tool.js";
 import {
   createSgaSendTool,
@@ -74,6 +75,10 @@ export function createOpenClawTools(options?: {
     sandboxed: options?.sandboxed,
   });
   const webFetchTool = createWebFetchTool({
+    config: options?.config,
+    sandboxed: options?.sandboxed,
+  });
+  const searxngSgaTool = createSearxngSgaTool({
     config: options?.config,
     sandboxed: options?.sandboxed,
   });
@@ -147,6 +152,7 @@ export function createOpenClawTools(options?: {
     ...(webSearchTool ? [webSearchTool] : []),
     ...(webFetchTool ? [webFetchTool] : []),
     ...(imageTool ? [imageTool] : []),
+    createSearxngSgaTool({ config: options?.config, sandboxed: options?.sandboxed }),
   ];
 
   // Add SGA tools if platform is configured (Enterprise mode)
