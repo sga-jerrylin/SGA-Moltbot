@@ -1,7 +1,11 @@
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../../agents/agent-scope.js";
+import { discoverSkills } from "../../agents/skills-discover.js";
+import { importSkills } from "../../agents/skills-import.js";
 import { installSkill } from "../../agents/skills-install.js";
 import { buildWorkspaceSkillStatus } from "../../agents/skills-status.js";
+import { validateImportedSkills } from "../../agents/skills-validate.js";
 import { loadWorkspaceSkillEntries, type SkillEntry } from "../../agents/skills.js";
+import { bumpSkillsSnapshotVersion } from "../../agents/skills/refresh.js";
 import type { OpenClawConfig } from "../../config/config.js";
 import { loadConfig, writeConfigFile } from "../../config/config.js";
 import { getRemoteSkillEligibility } from "../../infra/skills-remote.js";
@@ -10,6 +14,9 @@ import {
   errorShape,
   formatValidationErrors,
   validateSkillsBinsParams,
+  validateSkillsDiscoverParams,
+  validateSkillsAddParams,
+  validateSkillsImportParams,
   validateSkillsInstallParams,
   validateSkillsStatusParams,
   validateSkillsUpdateParams,
@@ -105,6 +112,162 @@ export const skillsHandlers: GatewayRequestHandlers = {
     }
     respond(true, { bins: [...bins].toSorted() }, undefined);
   },
+  "skills.discover": async ({ params, respond }) => {
+    if (!validateSkillsDiscoverParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid skills.discover params: ${formatValidationErrors(validateSkillsDiscoverParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    const p = params as {
+      prompt: string;
+      limit?: number;
+      mode?: "auto" | "skill-pool" | "github";
+      githubToken?: string;
+      timeoutMs?: number;
+    };
+    const result = await discoverSkills({
+      prompt: p.prompt,
+      limit: p.limit,
+      mode: p.mode,
+      githubToken: p.githubToken,
+      timeoutMs: p.timeoutMs,
+    });
+    respond(result.ok, result, result.ok ? undefined : errorShape(ErrorCodes.UNAVAILABLE, result.message));
+  },
+  "skills.add": async ({ params, respond }) => {
+    if (!validateSkillsAddParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid skills.add params: ${formatValidationErrors(validateSkillsAddParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    const p = params as {
+      prompt: string;
+      target?: "workspace" | "managed";
+      overwrite?: boolean;
+      autoInstall?: boolean;
+      mode?: "auto" | "skill-pool" | "github";
+      githubToken?: string;
+      timeoutMs?: number;
+    };
+    const discovered = await discoverSkills({
+      prompt: p.prompt,
+      limit: 5,
+      mode: p.mode,
+      githubToken: p.githubToken,
+      timeoutMs: p.timeoutMs,
+    });
+    if (!discovered.ok || discovered.candidates.length === 0) {
+      respond(false, discovered, errorShape(ErrorCodes.UNAVAILABLE, discovered.message));
+      return;
+    }
+
+    const candidate = discovered.candidates[0];
+    const cfg = loadConfig();
+    const workspaceDirRaw = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
+    const imported = await importSkills({
+      source: candidate.source,
+      target: p.target ?? "workspace",
+      workspaceDir: workspaceDirRaw,
+      overwrite: p.overwrite,
+      timeoutMs: p.timeoutMs,
+    });
+
+    const eligibility = { remote: getRemoteSkillEligibility() };
+    let validation = imported.ok
+      ? await validateImportedSkills({
+          workspaceDir: workspaceDirRaw,
+          imported: imported.imported,
+          config: cfg,
+          eligibility,
+        })
+      : undefined;
+
+    const autoInstallResults: Array<{
+      name: string;
+      installId: string;
+      ok: boolean;
+      message: string;
+      stdout: string;
+      stderr: string;
+      code: number | null;
+    }> = [];
+
+    if (imported.ok && p.autoInstall && validation) {
+      for (const entry of validation.skills) {
+        const status = entry.status;
+        if (!status) {
+          continue;
+        }
+        if (status.eligible) {
+          continue;
+        }
+        if (status.install.length === 0) {
+          continue;
+        }
+        if (status.missing.os.length > 0) {
+          continue;
+        }
+        const missingBins = status.missing.bins.length > 0 || status.missing.anyBins.length > 0;
+        if (!missingBins) {
+          continue;
+        }
+
+        const installId = status.install[0]?.id;
+        if (!installId) {
+          continue;
+        }
+        const installResult = await installSkill({
+          workspaceDir: workspaceDirRaw,
+          skillName: status.name,
+          installId,
+          timeoutMs: p.timeoutMs,
+          config: cfg,
+        });
+        autoInstallResults.push({ name: status.name, installId, ...installResult });
+      }
+
+      validation = await validateImportedSkills({
+        workspaceDir: workspaceDirRaw,
+        imported: imported.imported,
+        config: cfg,
+        eligibility,
+      });
+    }
+
+    const result = {
+      ok: imported.ok,
+      candidate,
+      import: imported,
+      ...(validation ? { validation } : {}),
+      ...(autoInstallResults.length > 0
+        ? { autoInstall: { attempted: autoInstallResults.length, results: autoInstallResults } }
+        : {}),
+      discovery: {
+        message: discovered.message,
+        warnings: discovered.warnings,
+      },
+    };
+    if (imported.ok) {
+      bumpSkillsSnapshotVersion({ reason: "manual" });
+    }
+    respond(
+      imported.ok,
+      result,
+      imported.ok ? undefined : errorShape(ErrorCodes.UNAVAILABLE, imported.message),
+    );
+  },
   "skills.install": async ({ params, respond }) => {
     if (!validateSkillsInstallParams(params)) {
       respond(
@@ -131,9 +294,122 @@ export const skillsHandlers: GatewayRequestHandlers = {
       timeoutMs: p.timeoutMs,
       config: cfg,
     });
+    if (result.ok) {
+      bumpSkillsSnapshotVersion({ reason: "manual" });
+    }
     respond(
       result.ok,
       result,
+      result.ok ? undefined : errorShape(ErrorCodes.UNAVAILABLE, result.message),
+    );
+  },
+  "skills.import": async ({ params, respond }) => {
+    if (!validateSkillsImportParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid skills.import params: ${formatValidationErrors(validateSkillsImportParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    const p = params as {
+      source: string;
+      target?: "workspace" | "managed";
+      ref?: string;
+      subdir?: string;
+      overwrite?: boolean;
+      autoInstall?: boolean;
+      timeoutMs?: number;
+    };
+    const cfg = loadConfig();
+    const workspaceDirRaw = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
+    const result = await importSkills({
+      source: p.source,
+      target: p.target ?? "workspace",
+      workspaceDir: workspaceDirRaw,
+      ref: p.ref,
+      subdir: p.subdir,
+      overwrite: p.overwrite,
+      timeoutMs: p.timeoutMs,
+    });
+
+    const eligibility = { remote: getRemoteSkillEligibility() };
+    let validation = result.ok
+      ? await validateImportedSkills({
+          workspaceDir: workspaceDirRaw,
+          imported: result.imported,
+          config: cfg,
+          eligibility,
+        })
+      : undefined;
+
+    const autoInstallResults: Array<{
+      name: string;
+      installId: string;
+      ok: boolean;
+      message: string;
+      stdout: string;
+      stderr: string;
+      code: number | null;
+    }> = [];
+
+    if (result.ok && p.autoInstall && validation) {
+      for (const entry of validation.skills) {
+        const status = entry.status;
+        if (!status) {
+          continue;
+        }
+        if (status.eligible) {
+          continue;
+        }
+        if (status.install.length === 0) {
+          continue;
+        }
+        if (status.missing.os.length > 0) {
+          continue;
+        }
+        const missingBins = status.missing.bins.length > 0 || status.missing.anyBins.length > 0;
+        if (!missingBins) {
+          continue;
+        }
+
+        const installId = status.install[0]?.id;
+        if (!installId) {
+          continue;
+        }
+        const installResult = await installSkill({
+          workspaceDir: workspaceDirRaw,
+          skillName: status.name,
+          installId,
+          timeoutMs: p.timeoutMs,
+          config: cfg,
+        });
+        autoInstallResults.push({ name: status.name, installId, ...installResult });
+      }
+
+      validation = await validateImportedSkills({
+        workspaceDir: workspaceDirRaw,
+        imported: result.imported,
+        config: cfg,
+        eligibility,
+      });
+    }
+
+    if (result.ok) {
+      bumpSkillsSnapshotVersion({ reason: "manual" });
+    }
+    respond(
+      result.ok,
+      {
+        ...result,
+        ...(validation ? { validation } : {}),
+        ...(autoInstallResults.length > 0
+          ? { autoInstall: { attempted: autoInstallResults.length, results: autoInstallResults } }
+          : {}),
+      },
       result.ok ? undefined : errorShape(ErrorCodes.UNAVAILABLE, result.message),
     );
   },
@@ -193,6 +469,7 @@ export const skillsHandlers: GatewayRequestHandlers = {
       skills,
     };
     await writeConfigFile(nextConfig);
+    bumpSkillsSnapshotVersion({ reason: "manual" });
     respond(true, { ok: true, skillKey: p.skillKey, config: current }, undefined);
   },
 };

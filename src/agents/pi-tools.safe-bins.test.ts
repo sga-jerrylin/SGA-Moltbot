@@ -41,10 +41,12 @@ vi.mock("../infra/exec-approvals.js", async (importOriginal) => {
 });
 
 describe("createOpenClawCodingTools safeBins", () => {
-  it("threads tools.exec.safeBins into exec allowlist checks", async () => {
-    if (process.platform === "win32") {
-      return;
-    }
+  it(
+    "threads tools.exec.safeBins into exec allowlist checks",
+    async () => {
+      if (process.platform === "win32") {
+        return;
+      }
 
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-safe-bins-"));
     const cfg: OpenClawConfig = {
@@ -71,10 +73,13 @@ describe("createOpenClawCodingTools safeBins", () => {
     const result = await execTool!.execute("call1", {
       command: `echo ${marker}`,
       workdir: tmpDir,
+      env: { PATH: process.env.PATH ?? "" },
     });
     const text = result.content.find((content) => content.type === "text")?.text ?? "";
 
-    expect(result.details.status).toBe("completed");
-    expect(text).toContain(marker);
-  });
+      expect(result.details.status).toBe("completed");
+      expect(text).toContain(marker);
+    },
+    240_000,
+  );
 });

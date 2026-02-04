@@ -7,7 +7,7 @@
 
 import type { OpenClawConfig } from "../config/config.js";
 import type { ModelProviderConfig } from "../config/types.models.js";
-import type { MessagingToolSend } from "./pi-embedded-messaging.js";
+import type { EmbeddedPiRunResult } from "./pi-embedded-runner/types.js";
 import {
   DifyChatProvider,
   type DifyAgentThoughtEvent,
@@ -27,30 +27,12 @@ export interface DifyAgentRunParams {
   timeoutMs?: number;
 }
 
-export interface DifyAgentRunResult {
-  payloads: Array<{ text: string; type?: string }>;
-  meta: {
-    durationMs: number;
-    agentMeta?: {
-      sessionId: string;
-      provider: string;
-      model: string;
-      usage?: {
-        input?: number;
-        output?: number;
-        cacheRead?: number;
-        cacheWrite?: number;
-        total?: number;
-      };
-    };
-  };
-  didSendViaMessagingTool?: boolean;
-  messagingToolSentTargets?: MessagingToolSend[];
+export type DifyAgentRunResult = EmbeddedPiRunResult & {
   /** Dify conversation ID for session continuity */
   difyConversationId?: string;
   /** Agent thoughts from Dify workflow/agent */
   difyThoughts?: DifyAgentThoughtEvent[];
-}
+};
 
 // Conversation cache: sessionKey -> conversationId
 const conversationCache = new Map<string, string>();
@@ -58,8 +40,8 @@ const conversationCache = new Map<string, string>();
 /**
  * Check if a provider is configured as Dify
  */
-export function isDifyProvider(provider: string, cfg: OpenClawConfig): boolean {
-  const providerConfig = cfg.models?.providers?.[provider];
+export function isDifyProvider(provider: string, cfg: OpenClawConfig | undefined): boolean {
+  const providerConfig = cfg?.models?.providers?.[provider];
   return providerConfig?.api === "dify-chat";
 }
 
@@ -68,9 +50,9 @@ export function isDifyProvider(provider: string, cfg: OpenClawConfig): boolean {
  */
 export function getDifyProviderConfig(
   provider: string,
-  cfg: OpenClawConfig
+  cfg: OpenClawConfig | undefined
 ): ModelProviderConfig | null {
-  const providerConfig = cfg.models?.providers?.[provider];
+  const providerConfig = cfg?.models?.providers?.[provider];
   if (providerConfig?.api !== "dify-chat") {
     return null;
   }
@@ -97,7 +79,7 @@ export async function runDifyAgent(params: DifyAgentRunParams): Promise<DifyAgen
     apiKey: providerConfig.apiKey,
     fixedUserId: providerConfig.fixedUserId,
     isAgent: providerConfig.isAgent,
-    inputs: providerConfig.inputs as Record<string, unknown> | undefined,
+    inputs: providerConfig.inputs,
   });
 
   // Resolve user ID: fixedUserId > requestUserId > extract from sessionKey > default
@@ -141,7 +123,7 @@ export async function runDifyAgent(params: DifyAgentRunParams): Promise<DifyAgen
         message: params.prompt,
         userId: effectiveUserId,
         conversationId,
-        inputs: providerConfig.inputs as Record<string, unknown> | undefined,
+        inputs: providerConfig.inputs,
       })) {
         switch (event.event) {
           case "message":
@@ -197,7 +179,7 @@ export async function runDifyAgent(params: DifyAgentRunParams): Promise<DifyAgen
     });
 
     return {
-      payloads: [{ text: answer, type: "text" }],
+      payloads: [{ text: answer }],
       meta: {
         durationMs: duration,
         agentMeta: {
@@ -214,7 +196,7 @@ export async function runDifyAgent(params: DifyAgentRunParams): Promise<DifyAgen
         },
       },
       didSendViaMessagingTool: false,
-      messagingToolSentTargets: [] as MessagingToolSend[],
+      messagingToolSentTargets: [],
       difyConversationId: resultConversationId,
       difyThoughts: thoughts,
     };

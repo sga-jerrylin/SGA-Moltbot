@@ -61,6 +61,7 @@ const READ_METHODS = new Set([
   "agents.list",
   "agent.identity.get",
   "skills.status",
+  "skills.discover",
   "voicewake.get",
   "sessions.list",
   "sessions.preview",
@@ -143,7 +144,9 @@ function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["c
     method.startsWith("wizard.") ||
     method.startsWith("update.") ||
     method === "channels.logout" ||
+    method === "skills.add" ||
     method === "skills.install" ||
+    method === "skills.import" ||
     method === "skills.update" ||
     method === "cron.add" ||
     method === "cron.update" ||

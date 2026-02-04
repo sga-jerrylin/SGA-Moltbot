@@ -40,6 +40,7 @@ export const TOOL_GROUPS: Record<string, string[]> = {
     "canvas",
     "nodes",
     "cron",
+    "skills",
     "message",
     "gateway",
     "agents_list",

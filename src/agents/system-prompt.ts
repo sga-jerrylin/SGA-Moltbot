@@ -30,6 +30,7 @@ function buildSkillsSection(params: {
     `- If exactly one skill clearly applies: read its SKILL.md at <location> with \`${params.readToolName}\`, then follow it.`,
     "- If multiple could apply: choose the most specific one, then read/follow it.",
     "- If none clearly apply: do not read any SKILL.md.",
+    "- If the user asks to add/import a new skill: use the `skills` tool. If they provide a repo/path use action=import; otherwise use action=add with the user's prompt. Then re-check `skills` (action=status).",
     "Constraints: never read more than one skill up front; only read after selecting.",
     trimmed,
     "",

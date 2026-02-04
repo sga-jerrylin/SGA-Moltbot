@@ -17,7 +17,10 @@ import type {
   ModelsListResultSchema,
   SkillsBinsParamsSchema,
   SkillsBinsResultSchema,
+  SkillsDiscoverParamsSchema,
+  SkillsAddParamsSchema,
   SkillsInstallParamsSchema,
+  SkillsImportParamsSchema,
   SkillsStatusParamsSchema,
   SkillsUpdateParamsSchema,
 } from "./agents-models-skills.js";
@@ -180,7 +183,10 @@ export type ModelsListResult = Static<typeof ModelsListResultSchema>;
 export type SkillsStatusParams = Static<typeof SkillsStatusParamsSchema>;
 export type SkillsBinsParams = Static<typeof SkillsBinsParamsSchema>;
 export type SkillsBinsResult = Static<typeof SkillsBinsResultSchema>;
+export type SkillsDiscoverParams = Static<typeof SkillsDiscoverParamsSchema>;
+export type SkillsAddParams = Static<typeof SkillsAddParamsSchema>;
 export type SkillsInstallParams = Static<typeof SkillsInstallParamsSchema>;
+export type SkillsImportParams = Static<typeof SkillsImportParamsSchema>;
 export type SkillsUpdateParams = Static<typeof SkillsUpdateParamsSchema>;
 export type CronJob = Static<typeof CronJobSchema>;
 export type CronListParams = Static<typeof CronListParamsSchema>;

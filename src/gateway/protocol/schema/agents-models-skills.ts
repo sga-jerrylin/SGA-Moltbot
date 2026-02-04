@@ -74,6 +74,47 @@ export const SkillsInstallParamsSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const SkillsImportParamsSchema = Type.Object(
+  {
+    source: NonEmptyString,
+    target: Type.Optional(Type.Union([Type.Literal("workspace"), Type.Literal("managed")])),
+    ref: Type.Optional(Type.String()),
+    subdir: Type.Optional(Type.String()),
+    overwrite: Type.Optional(Type.Boolean()),
+    autoInstall: Type.Optional(Type.Boolean()),
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 1000 })),
+  },
+  { additionalProperties: false },
+);
+
+export const SkillsDiscoverParamsSchema = Type.Object(
+  {
+    prompt: NonEmptyString,
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10 })),
+    mode: Type.Optional(
+      Type.Union([Type.Literal("auto"), Type.Literal("skill-pool"), Type.Literal("github")]),
+    ),
+    githubToken: Type.Optional(Type.String()),
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 1000 })),
+  },
+  { additionalProperties: false },
+);
+
+export const SkillsAddParamsSchema = Type.Object(
+  {
+    prompt: NonEmptyString,
+    target: Type.Optional(Type.Union([Type.Literal("workspace"), Type.Literal("managed")])),
+    overwrite: Type.Optional(Type.Boolean()),
+    autoInstall: Type.Optional(Type.Boolean()),
+    mode: Type.Optional(
+      Type.Union([Type.Literal("auto"), Type.Literal("skill-pool"), Type.Literal("github")]),
+    ),
+    githubToken: Type.Optional(Type.String()),
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 1000 })),
+  },
+  { additionalProperties: false },
+);
+
 export const SkillsUpdateParamsSchema = Type.Object(
   {
     skillKey: NonEmptyString,

@@ -77,7 +77,7 @@ export async function runEmbeddedPiAgent(
   const modelId = (params.model ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
 
   // Check if this is a Dify provider - if so, use Dify runner instead
-  if (isDifyProvider(provider, params.config)) {
+  if (params.config && isDifyProvider(provider, params.config)) {
     console.log(`[pi-embedded-runner] Detected Dify provider, redirecting to Dify runner`);
     const difyResult = await runDifyAgent({
       sessionId: params.sessionId,

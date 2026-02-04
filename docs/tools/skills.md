@@ -65,6 +65,38 @@ By default, `clawhub` installs into `./skills` under your current working
 directory (or falls back to the configured OpenClaw workspace). OpenClaw picks
 that up as `<workspace>/skills` on the next session.
 
+## Import from GitHub or local paths
+
+If you already have a skills repo (or a GitHub link to a specific skill folder),
+you can import it directly:
+
+```bash
+# Import into the current agent's workspace
+openclaw skills import https://github.com/<owner>/<repo>/tree/<ref>/<skill-subdir>
+
+# Import into ~/.openclaw/skills (shared across all agents on this machine)
+openclaw skills import https://github.com/<owner>/<repo>/tree/<ref>/<skill-subdir> --managed
+```
+
+After importing, use `openclaw skills check` (or `openclaw skills list -v`) to
+see whether the imported skill is eligible, and which binaries/env/config items
+are missing.
+
+Optional: add `--auto-install` to attempt installation using the skill’s
+`metadata.openclaw.install` specs, then re-check eligibility automatically.
+
+### Prompt-based discovery (agent)
+
+If you don’t have a repo URL yet, you can ask the assistant to “find and add a
+skill” for your need. OpenClaw will try a curated index first, then fall back to
+GitHub search (preferring higher-star repos) and import the best match.
+
+Tip: set `GITHUB_TOKEN` (or `GH_TOKEN`) when doing a lot of discovery to avoid
+GitHub API rate limits.
+
+Tip: when using the `skills` tool, pass `autoInstall: true` to attempt installs
+after import.
+
 ## Security notes
 
 - Treat third-party skills as **trusted code**. Read them before enabling.
