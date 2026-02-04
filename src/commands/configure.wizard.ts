@@ -88,82 +88,76 @@ async function promptChannelMode(runtime: RuntimeEnv): Promise<ChannelsWizardMod
   ) as ChannelsWizardMode;
 }
 
-async function promptWebToolsConfig(
+import { promptWebToolsConfig } from "./configure.web.js";
+
+async function promptMemorySearchConfig(
   nextConfig: OpenClawConfig,
   runtime: RuntimeEnv,
 ): Promise<OpenClawConfig> {
-  const existingSearch = nextConfig.tools?.web?.search;
-  const existingFetch = nextConfig.tools?.web?.fetch;
-  const hasSearchKey = Boolean(existingSearch?.apiKey);
+  const existingMemory = nextConfig.agents?.defaults?.memorySearch;
+  const hasApiKey = Boolean(existingMemory?.remote?.apiKey);
 
   note(
     [
-      "Web search lets your agent look things up online using the `web_search` tool.",
-      "It requires a Brave Search API key (you can store it in the config or set BRAVE_API_KEY in the Gateway environment).",
-      "Docs: https://docs.openclaw.ai/tools/web",
+      "Memory Search gives your agent long-term memory via vector embeddings.",
+      "We'll configure this using Aliyun's Qwen embedding model (OpenAI-compatible).",
+      "Endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "Model: text-embedding-v3",
+      "Docs: https://docs.openclaw.ai/concepts/memory",
     ].join("\n"),
-    "Web search",
+    "Memory Search",
   );
 
-  const enableSearch = guardCancel(
+  const enableMemory = guardCancel(
     await confirm({
-      message: "Enable web_search (Brave Search)?",
-      initialValue: existingSearch?.enabled ?? hasSearchKey,
+      message: "Enable Memory Search (Aliyun Qwen)?",
+      initialValue: Boolean(existingMemory?.provider) || true,
     }),
     runtime,
   );
 
-  let nextSearch = {
-    ...existingSearch,
-    enabled: enableSearch,
-  };
-
-  if (enableSearch) {
-    const keyInput = guardCancel(
-      await text({
-        message: hasSearchKey
-          ? "Brave Search API key (leave blank to keep current or use BRAVE_API_KEY)"
-          : "Brave Search API key (paste it here; leave blank to use BRAVE_API_KEY)",
-        placeholder: hasSearchKey ? "Leave blank to keep current" : "BSA...",
-      }),
-      runtime,
-    );
-    const key = String(keyInput ?? "").trim();
-    if (key) {
-      nextSearch = { ...nextSearch, apiKey: key };
-    } else if (!hasSearchKey) {
-      note(
-        [
-          "No key stored yet, so web_search will stay unavailable.",
-          "Store a key here or set BRAVE_API_KEY in the Gateway environment.",
-          "Docs: https://docs.openclaw.ai/tools/web",
-        ].join("\n"),
-        "Web search",
-      );
-    }
+  if (!enableMemory) {
+    // If disabled, we just return the config without memory settings (or strip them if you prefer,
+    // but here we'll just leave existing config alone or set a flag if needed).
+    // For now, let's assuming disabling just means not configuring it further.
+    // If you want to explicitly disable it, you might set provider to undefined.
+    // But typically we just don't set the defaults.
+    return nextConfig;
   }
 
-  const enableFetch = guardCancel(
-    await confirm({
-      message: "Enable web_fetch (keyless HTTP fetch)?",
-      initialValue: existingFetch?.enabled ?? true,
+  const apiKeyInput = guardCancel(
+    await text({
+      message: hasApiKey
+        ? "Aliyun API Key (leave blank to keep current)"
+        : "Aliyun API Key (sk-...) for embeddings",
+      placeholder: "sk-...",
+      initialValue: hasApiKey ? undefined : "sk-a2e7b59004734cd7b06dd246bc72c30b", // Pre-fill provided key for convenience
     }),
     runtime,
   );
 
-  const nextFetch = {
-    ...existingFetch,
-    enabled: enableFetch,
-  };
+  const apiKey = String(apiKeyInput ?? "").trim();
+  const finalApiKey = apiKey || existingMemory?.remote?.apiKey;
+
+  if (!finalApiKey) {
+    note("No API key provided. Memory search will not work until configured.", "Warning");
+    return nextConfig;
+  }
 
   return {
     ...nextConfig,
-    tools: {
-      ...nextConfig.tools,
-      web: {
-        ...nextConfig.tools?.web,
-        search: nextSearch,
-        fetch: nextFetch,
+    agents: {
+      ...nextConfig.agents,
+      defaults: {
+        ...nextConfig.agents?.defaults,
+        memorySearch: {
+          provider: "openai",
+          model: "text-embedding-v3",
+          remote: {
+            baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            apiKey: finalApiKey,
+          },
+        },
       },
     },
   };

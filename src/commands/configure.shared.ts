@@ -12,6 +12,7 @@ export const CONFIGURE_WIZARD_SECTIONS = [
   "workspace",
   "model",
   "web",
+  "memory",
   "gateway",
   "daemon",
   "channels",
@@ -36,6 +37,7 @@ export const CONFIGURE_SECTION_OPTIONS: Array<{
   { value: "workspace", label: "Workspace", hint: "Set workspace + sessions" },
   { value: "model", label: "Model", hint: "Pick provider + credentials" },
   { value: "web", label: "Web tools", hint: "Configure Brave search + fetch" },
+  { value: "memory", label: "Memory", hint: "Configure vector memory search" },
   { value: "gateway", label: "Gateway", hint: "Port, bind, auth, tailscale" },
   {
     value: "daemon",
